@@ -59,6 +59,22 @@ def init_db():
     except sqlite3.OperationalError:
         pass
     
+    
+    # Deleted Records: for undo functionality
+    c.execute('''CREATE TABLE IF NOT EXISTS deleted_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_record_id INTEGER,
+        machine_id INTEGER,
+        date TEXT,
+        investment_balls INTEGER,
+        spins INTEGER,
+        hits INTEGER,
+        out_balls INTEGER,
+        base_calculated REAL,
+        out_10r_calculated REAL,
+        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    
     conn.commit()
     conn.close()
 
@@ -170,44 +186,110 @@ def get_machine_weighted_stats(store_id, machine_number):
     
     return weighted_base, weighted_out, t_spins, t_inv_balls, t_out_balls, t_hits, record_count
 
+    # Deleted Records: for undo functionality
+    c.execute('''CREATE TABLE IF NOT EXISTS deleted_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_record_id INTEGER,
+        machine_id INTEGER,
+        date TEXT,
+        investment_balls INTEGER,
+        spins INTEGER,
+        hits INTEGER,
+        out_balls INTEGER,
+        base_calculated REAL,
+        out_10r_calculated REAL,
+        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    
+    conn.commit()
+    conn.close()
+
+# ... (omitted parts) ...
+
 def delete_last_record(store_id, machine_number):
     mid, _ = get_or_create_machine(store_id, machine_number)
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Find the last record ID
-    c.execute("SELECT id FROM records WHERE machine_id=? ORDER BY id DESC LIMIT 1", (mid,))
+    # Find the last record
+    c.execute("SELECT * FROM records WHERE machine_id=? ORDER BY id DESC LIMIT 1", (mid,))
     row = c.fetchone()
     
     if row:
-        last_id = row[0]
-        c.execute("DELETE FROM records WHERE id=?", (last_id,))
+        # row structure: 0:id, 1:mid, 2:date, 3:inv, 4:spins, 5:hits, 6:out, 7:base, 8:out10r
+        original_id = row[0]
         
-        # Recalculate and update machine stats after deletion
-        c.execute("SELECT SUM(hits), SUM(out_balls), SUM(spins), SUM(investment_balls) FROM records WHERE machine_id=?", (mid,))
-        stat_row = c.fetchone()
+        # Backup to deleted_records
+        c.execute('''INSERT INTO deleted_records 
+                     (original_record_id, machine_id, date, investment_balls, spins, hits, out_balls, base_calculated, out_10r_calculated)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]))
         
-        if stat_row and stat_row[2]: # If there are still records
-            t_hits = stat_row[0] or 0
-            t_out = stat_row[1] or 0
-            t_spins = stat_row[2] or 0
-            t_inv = stat_row[3] or 0
-            
-            # Weighted Avg Out
-            new_avg_out = t_out / t_hits if t_hits > 0 else 1400.0
-            
-            # Weighted Base
-            t_inv_units = t_inv / 250.0
-            new_avg_base = t_spins / t_inv_units if t_inv_units > 0 else 20.0
-            
-            c.execute("UPDATE machines SET avg_out_balls = ?, avg_base = ?, total_spins = ?, total_out_balls = ? WHERE id = ?", 
-                      (new_avg_out, new_avg_base, t_spins, t_out, mid))
-        else:
-            # No records left, reset to default
-            c.execute("UPDATE machines SET avg_out_balls=1400.0, avg_base=20.0, total_spins=0, total_out_balls=0 WHERE id=?", (mid,))
+        # Delete from records
+        c.execute("DELETE FROM records WHERE id=?", (original_id,))
+        
+        # Recalculate stats
+        update_machine_stats(c, mid)
             
     conn.commit()
     conn.close()
+
+def restore_last_record(store_id, machine_number):
+    mid, _ = get_or_create_machine(store_id, machine_number)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Find the last deleted record for this machine
+    c.execute("SELECT * FROM deleted_records WHERE machine_id=? ORDER BY id DESC LIMIT 1", (mid,))
+    row = c.fetchone()
+    
+    if row:
+        # row structure based on CREATE TABLE: 
+        # 0:id, 1:orig_id, 2:mid, 3:date, 4:inv, 5:spins, 6:hits, 7:out, 8:base, 9:out10r, 10:deleted_at
+        del_rec_id = row[0]
+        
+        # Restore to records (Letting ID auto-increment to be new, or we could force original ID but that might conflict. New ID is safer)
+        # Restore to records (Letting ID auto-increment to be new)
+        c.execute('''INSERT INTO records 
+                     (machine_id, date, investment_balls, spins, hits, out_balls, base_calculated, out_10r_calculated)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9]))
+        
+        # Remove from deleted_records
+        c.execute("DELETE FROM deleted_records WHERE id=?", (del_rec_id,))
+        
+        # Recalculate stats
+        update_machine_stats(c, mid)
+        
+        conn.commit()
+        conn.close()
+        return True
+    
+    conn.close()
+    return False
+
+def update_machine_stats(c, mid):
+    c.execute("SELECT SUM(hits), SUM(out_balls), SUM(spins), SUM(investment_balls) FROM records WHERE machine_id=?", (mid,))
+    stat_row = c.fetchone()
+    
+    if stat_row and stat_row[2]: # If there are still records
+        t_hits = stat_row[0] or 0
+        t_out = stat_row[1] or 0
+        t_spins = stat_row[2] or 0
+        t_inv = stat_row[3] or 0
+        
+        # Weighted Avg Out
+        new_avg_out = t_out / t_hits if t_hits > 0 else 1400.0
+        
+        # Weighted Base
+        t_inv_units = t_inv / 250.0
+        new_avg_base = t_spins / t_inv_units if t_inv_units > 0 else 20.0
+        
+        c.execute("UPDATE machines SET avg_out_balls = ?, avg_base = ?, total_spins = ?, total_out_balls = ? WHERE id = ?", 
+                  (new_avg_out, new_avg_base, t_spins, t_out, mid))
+    else:
+        # No records left, reset to default
+        c.execute("UPDATE machines SET avg_out_balls=1400.0, avg_base=20.0, total_spins=0, total_out_balls=0 WHERE id=?", (mid,))
 
 def clear_machine_records(store_id, machine_number):
     mid, _ = get_or_create_machine(store_id, machine_number)

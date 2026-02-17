@@ -61,6 +61,7 @@ total_hits = st.sidebar.number_input("総当たり回数 (10R)", 0, 50, 0)
 # Usually we input: "Total Won Balls".
 total_out = st.sidebar.number_input("総出玉", 0, 50000, 0)
 
+
 col_btn1, col_btn2 = st.sidebar.columns(2)
 with col_btn1:
     if st.sidebar.button("記録"):
@@ -75,6 +76,13 @@ with col_btn2:
         db.delete_last_record(store_id, m_num)
         st.warning("最新のデータを1件削除しました。")
         st.rerun()
+
+if st.sidebar.button("直前の削除を取り消す"):
+    if db.restore_last_record(store_id, m_num):
+        st.success("データを復活させました。")
+        st.rerun()
+    else:
+        st.error("復活できるデータがありません。")
 
 # Main Area: Calculator
 st.subheader("期待値計算")
