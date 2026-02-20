@@ -18,9 +18,18 @@ db.init_db()
 st.title("🌊 Sea Story 4 SP Expectation Manager")
 
 # Store Configuration
+# Define ranges with exclusion logic (4 and 9)
+def generate_range_exclude_49(start, end):
+    return [i for i in range(start, end + 1) if i % 10 not in (4, 9)]
+
+sh_alta = generate_range_exclude_49(1551, 1561) + generate_range_exclude_49(1650, 1660)
+sh_agnes = list(range(1837, 1839))
+sh_shinkai = list(range(1850, 1852))
+
 STORE_CONFIG = {
     "ラフェスタ 5": list(range(987, 1005)),
-    "999": list(range(81, 85)) + list(range(86, 88)) + list(range(93, 101)) + list(range(141, 149))
+    "999": list(range(81, 85)) + list(range(86, 88)) + list(range(93, 101)) + list(range(141, 149)),
+    "スーパーハリウッド1000": sh_alta + sh_agnes + sh_shinkai
 }
 
 # Sidebar: Inputs and Machine Selection
@@ -29,8 +38,27 @@ st.sidebar.header("台データ入力")
 # 1. Rename "Default Store" if exists
 db.rename_store("Default Store", "ラフェスタ 5")
 
-# 2. Ensure "999" exists
-db.add_store("999", 28.0) # Assuming rate, user can update if needed.
+# 2. Ensure stores exist
+db.add_store("999", 28.0)
+db.add_store("スーパーハリウッド1000", 28.0)
+
+# 3. Store Selection
+# ... (existing code) ...
+
+# ... (inside STORE_MODEL_CONFIG) ...
+STORE_MODEL_CONFIG = {
+    "999": {
+        "P大海物語5スペシャル ALTA": list(range(93, 101)) + list(range(141, 149)),
+        "PA大海物語5 With アグネス･ラム ARBC": list(range(81, 85)),
+        "PA大海物語4スペシャル RBA": list(range(86, 88))
+    },
+    "スーパーハリウッド1000": {
+        "P大海物語5スペシャル ALTA": sh_alta,
+        "PA大海物語5 With アグネス･ラム ARBC": sh_agnes,
+        "PA新海物語 ARBB": sh_shinkai
+    }
+}
+
 
 # 3. Store Selection
 stores = db.get_stores()
@@ -176,6 +204,11 @@ STORE_MODEL_CONFIG = {
         "P大海物語5スペシャル ALTA": list(range(93, 101)) + list(range(141, 149)),
         "PA大海物語5 With アグネス･ラム ARBC": list(range(81, 85)),
         "PA大海物語4スペシャル RBA": list(range(86, 88))
+    },
+    "スーパーハリウッド1000": {
+        "P大海物語5スペシャル ALTA": sh_alta,
+        "PA大海物語5 With アグネス･ラム ARBC": sh_agnes,
+        "PA新海物語 ARBB": sh_shinkai
     }
 }
 
