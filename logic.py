@@ -45,88 +45,78 @@ def get_table_revenue(spins):
     val = p1[1] + (s - p1[0]) * slope
     
     return val
-
-def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_out=1400.0, is_tech_intervened=False):
+def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_out=1400.0, model_type="大海4SP"):
     """
-    Calculates EV using a reliable model derived from '大海4SP' data points.
-    Anchor Points (Remaining Spins S, Border B @ 1400 out):
-    S=600, B=16.90
-    S=500, B=16.09
-    S=400, B=14.91
-    S=300, B=13.20
-    S=200, B=10.64
-    S=100, B=6.64
+    Calculates EV using model-specific anchor points.
+    model_type: "大海4SP" or "大海5SP"
     """
     s = float(remaining_spins)
     if s <= 0: return 0
     if base <= 0: base = 1.0
     
-    # 1. Machine Constant (Sea Story 4 SP / 大海4SP Middle)
-    p = 1.0 / 319.7
+    # 1. Machine Specific Parameters
+    if model_type == "大海5SP":
+        p = 1.0 / 319.6  # Sea Story 5 SP
+        std_out = 1390.0
+        border_points = [
+            (100, 6.14),
+            (200, 9.98),
+            (300, 12.50),
+            (400, 14.22),
+            (500, 15.41),
+            (600, 16.24)
+        ]
+    else:
+        # Default: 大海4SP
+        p = 1.0 / 319.7
+        std_out = 1400.0
+        border_points = [
+            (100, 6.64),
+            (200, 10.64),
+            (300, 13.20),
+            (400, 14.91),
+            (500, 16.09),
+            (600, 16.90)
+        ]
     
-    # 2. Anchor Points for Border (at 1400 balls)
-    border_points = [
-        (100, 6.64),
-        (200, 10.64),
-        (300, 13.20),
-        (400, 14.91),
-        (500, 16.09),
-        (600, 16.90)
-    ]
-    
-    # Interpolate Border at 1400
+    # Interpolate Border at std_out
     if s <= 100:
-        # Extrapolate downwards (riskier, but 0 spins = 0 border is not right)
-        # Use slope from 100-200
         p1, p2 = border_points[0], border_points[1]
     elif s >= 600:
-        # Extrapolate upwards (should hit flat border ~18-19)
         p1, p2 = border_points[-2], border_points[-1]
     else:
-        # Find segment
-        p1, p2 = border_points[0], border_points[1] # fallback
+        p1, p2 = border_points[0], border_points[1]
         for i in range(len(border_points) - 1):
             if border_points[i][0] <= s <= border_points[i+1][0]:
                 p1, p2 = border_points[i], border_points[i+1]
                 break
     
     slope = (p2[1] - p1[1]) / (p2[0] - p1[0])
-    border_1400 = p1[1] + (s - p1[0]) * slope
+    border_std = p1[1] + (s - p1[0]) * slope
+    border_std = max(2.0, min(19.0, border_std))
     
-    # Border 1400 can't go below effectively 4-5 or above 20.0 (flat border for this machine)
-    border_1400 = max(2.0, min(19.0, border_1400))
+    # 2. Adjust Border for User's actual_10r_out
+    border_adj = border_std * (std_out / actual_10r_out)
     
-    # 3. Adjust Border for User's actual_10r_out
-    # Border is inversely proportional to output
-    # B_adj = B_std * (1400 / actual_out)
-    border_adj = border_1400 * (1400.0 / actual_10r_out)
-    
-    # 4. Calculate Expected Spins (Actual spins you will perform on average)
-    # E_spins = (1 - (1-p)^S) / p
-    # This accounts for hitting BEFORE the remaining spins are up.
-    # Use approx (1 - exp(-p*S)) / p if S is large, but exact is fine.
+    # 3. Expected Spins (accounts for hitting before S)
     prob_no_hit = (1.0 - p) ** s
     expected_spins = (1.0 - prob_no_hit) / p
     
-    # 5. EV Calculation
-    # Revenue (Balls) = (Expected Spins / Border) * 250
-    # Investment (Balls) = (Expected Spins / User Base) * 250
-    
+    # 4. EV Calculation
     rev_balls = (expected_spins / border_adj) * 250.0
     inv_balls = (expected_spins / base) * 250.0
     
     profit_balls = rev_balls - inv_balls
     
-    # 6. Convert to Yen
+    # 5. Convert to Yen
     yen_per_ball = 100.0 / exchange_rate
     ev_yen = profit_balls * yen_per_ball
     
     return int(ev_yen)
 
-def get_base_curve(base, exchange_rate, machine_out, steps=10):
+def get_base_curve(base, exchange_rate, machine_out, model_type="大海4SP"):
     points = []
-    # Plot Exp vs Base for fixed 400 spins
     for b in [x * 0.5 for x in range(30, 51)]: # 15 to 25
-        val = calculate_expectation(b, 400, exchange_rate, machine_out, False)
+        val = calculate_expectation(b, 400, exchange_rate, machine_out, model_type)
         points.append((b, val))
     return points
