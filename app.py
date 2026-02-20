@@ -57,6 +57,14 @@ if rec_count > 0:
       └ ({t_out:,}玉 / {t_hits}回)
     """)
 
+# Remarks Input
+current_remarks = db.get_machine_remarks(store_id, m_num)
+new_remarks = st.sidebar.text_area("備考", current_remarks)
+if st.sidebar.button("備考を保存"):
+    db.update_machine_remarks(store_id, m_num, new_remarks)
+    st.success("備考を保存しました。")
+    st.rerun()
+
 # Result Input
 st.sidebar.markdown("---")
 st.sidebar.subheader("実戦データ入力")
@@ -132,7 +140,7 @@ all_stats = db.get_all_machines_status(store_id)
 if all_stats:
     df = pd.DataFrame(all_stats)
     # Ensure column order
-    df = df[["番号", "回転率", "出玉"]]
+    df = df[["番号", "回転率(詳細)", "出玉(詳細)", "備考"]]
     
     # Display as a clean table/dataframe
     # height argument controls how much vertical space it takes. 

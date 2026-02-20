@@ -58,6 +58,11 @@ def init_db():
         c.execute("ALTER TABLE records ADD COLUMN out_10r_calculated REAL")
     except sqlite3.OperationalError:
         pass
+        
+    try:
+        c.execute("ALTER TABLE machines ADD COLUMN remarks TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
     
     
     # Deleted Records: for undo functionality
@@ -330,19 +335,54 @@ def ensure_default_machines(store_id):
     conn.commit()
     conn.close()
 
+def update_machine_remarks(store_id, machine_number, remarks):
+    mid, _ = get_or_create_machine(store_id, machine_number)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE machines SET remarks=? WHERE id=?", (remarks, mid))
+    conn.commit()
+    conn.close()
+
+def get_machine_remarks(store_id, machine_number):
+    mid, _ = get_or_create_machine(store_id, machine_number)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT remarks FROM machines WHERE id=?", (mid,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else ""
+
 def get_all_machines_status(store_id):
     m_nums = get_all_machine_numbers(store_id)
     data = []
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
     for m in m_nums:
         # returns 7 values
-        wb, wo, t_spins, _, _, _, _ = get_machine_weighted_stats(store_id, m)
+        wb, wo, t_spins, t_inv, t_out, t_hits, _ = get_machine_weighted_stats(store_id, m)
+        mid, _ = get_or_create_machine(store_id, m)
         
-        rate_disp = f"{wb:.1f}" if t_spins > 0 else "-"
-        out_disp = f"{int(wo)}" if t_spins > 0 else "-"
+        c.execute("SELECT remarks FROM machines WHERE id=?", (mid,))
+        res = c.fetchone()
+        remarks = res[0] if res else ""
+        
+        # Format: 21.5 (4300/200.0)
+        if t_spins > 0:
+            inv_units = t_inv / 250.0
+            rate_disp = f"{wb:.1f} ({t_spins:,}/{inv_units:,.1f})"
+            out_disp = f"{int(wo):,} ({t_out:,}/{t_hits})"
+        else:
+            rate_disp = "-"
+            out_disp = "-"
         
         data.append({
             "番号": m,
-            "回転率": rate_disp,
-            "出玉": out_disp
+            "回転率(詳細)": rate_disp,
+            "出玉(詳細)": out_disp,
+            "備考": remarks
         })
+        
+    conn.close()
     return data
