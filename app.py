@@ -160,6 +160,9 @@ if selected_store_name == "ラフェスタ 5":
 
     st.divider()
 
+# Result Input
+# ... (omitted parts) ...
+
 # Machine Statistics Section (Bottom)
 st.divider()
 
@@ -167,20 +170,47 @@ st.divider()
 st.subheader("📊 全台データ一覧")
 all_stats = db.get_all_machines_status(store_id)
 
+# Model Configuration for display grouping
+STORE_MODEL_CONFIG = {
+    "999": {
+        "P大海物語5スペシャル ALTA": list(range(93, 101)) + list(range(141, 149)),
+        "PA大海物語5 With アグネス･ラム ARBC": list(range(81, 85)),
+        "PA大海物語4スペシャル RBA": list(range(86, 88))
+    }
+}
+
 if all_stats:
-    df = pd.DataFrame(all_stats)
-    # Ensure column order
-    df = df[["番号", "回転率(詳細)", "出玉(詳細)", "備考"]]
+    df_all = pd.DataFrame(all_stats)
     
-    # Display as a clean table/dataframe
-    # height argument controls how much vertical space it takes. 
-    # use_container_width expands it to fill width.
-    st.dataframe(
-        df, 
-        hide_index=True, 
-        use_container_width=True,
-        height=(len(df) + 1) * 35 + 3 # approx height adjustment
-    )
+    # Check if we have specific model grouping for this store
+    if selected_store_name in STORE_MODEL_CONFIG:
+        model_map = STORE_MODEL_CONFIG[selected_store_name]
+        
+        for model_name, machine_nums in model_map.items():
+            # Filter df for these machines
+            df_model = df_all[df_all["番号"].isin(machine_nums)].copy()
+            
+            if not df_model.empty:
+                st.markdown(f"**{model_name}**")
+                
+                # Ensure column order
+                df_model = df_model[["番号", "回転率(詳細)", "出玉(詳細)", "備考"]]
+                
+                st.dataframe(
+                    df_model, 
+                    hide_index=True, 
+                    use_container_width=True,
+                    height=(len(df_model) + 1) * 35 + 3
+                )
+    else:
+        # Default display (No grouping defined)
+        df_all = df_all[["番号", "回転率(詳細)", "出玉(詳細)", "備考"]]
+        st.dataframe(
+            df_all, 
+            hide_index=True, 
+            use_container_width=True,
+            height=(len(df_all) + 1) * 35 + 3
+        )
 else:
     st.info("データがありません。")
 
