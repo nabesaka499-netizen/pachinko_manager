@@ -352,6 +352,45 @@ def get_machine_remarks(store_id, machine_number):
     conn.close()
     return row[0] if row else ""
 
+def rename_store(old_name, new_name):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    try:
+        c.execute("UPDATE stores SET name=? WHERE name=?", (new_name, old_name))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass # Name might already exist
+    conn.close()
+
+def ensure_machines(store_id, machine_numbers):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # 1. Identify machines to remove (those in DB but not in provided list)
+    # Get current machines for this store
+    c.execute("SELECT id, machine_number FROM machines WHERE store_id=?", (store_id,))
+    rows = c.fetchall()
+    current_map = {r[1]: r[0] for r in rows}
+    
+    target_set = set(machine_numbers)
+    current_set = set(current_map.keys())
+    
+    to_remove = current_set - target_set
+    to_add = target_set - current_set
+    
+    # Remove
+    for m_num in to_remove:
+        mid = current_map[m_num]
+        c.execute("DELETE FROM records WHERE machine_id=?", (mid,))
+        c.execute("DELETE FROM machines WHERE id=?", (mid,))
+        
+    # Add
+    for m_num in to_add:
+         c.execute("INSERT OR IGNORE INTO machines (store_id, machine_number, avg_out_balls, avg_base, total_spins, total_out_balls) VALUES (?, ?, 1400.0, 20.0, 0, 0)", (store_id, m_num))
+        
+    conn.commit()
+    conn.close()
+
 def get_all_machines_status(store_id):
     m_nums = get_all_machine_numbers(store_id)
     data = []

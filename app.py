@@ -17,28 +17,49 @@ db.init_db()
 
 st.title("🌊 Sea Story 4 SP Expectation Manager")
 
+# Store Configuration
+STORE_CONFIG = {
+    "ラフェスタ 5": list(range(987, 1005)),
+    "999": list(range(93, 101)) + list(range(141, 149))
+}
+
 # Sidebar: Inputs and Machine Selection
 st.sidebar.header("台データ入力")
 
-# Auto-select or create default store
+# 1. Rename "Default Store" if exists
+db.rename_store("Default Store", "ラフェスタ 5")
+
+# 2. Ensure "999" exists
+db.add_store("999", 28.0) # Assuming rate, user can update if needed.
+
+# 3. Store Selection
 stores = db.get_stores()
 if stores.empty:
-    db.add_store("Default Store", 27.0)
+    db.add_store("ラフェスタ 5", 27.0)
     stores = db.get_stores()
 
-store_row = stores.iloc[0]
+store_names = stores['name'].tolist()
+# Filter only configured stores or show all? Let's show all in DB but config applies to known ones.
+selected_store_name = st.sidebar.selectbox("店舗", store_names, index=store_names.index("ラフェスタ 5") if "ラフェスタ 5" in store_names else 0)
+
+store_row = stores[stores['name'] == selected_store_name].iloc[0]
 store_id = int(store_row['id'])
 rate = float(store_row['exchange_rate'])
-selected_store_name = store_row['name']
 
 # Machine Selection
 st.sidebar.subheader("台選択")
 
-# Ensure default machines (987-1004) exist
-db.ensure_default_machines(store_id)
+# Ensure machines for selected store
+if selected_store_name in STORE_CONFIG:
+    target_machines = STORE_CONFIG[selected_store_name]
+    db.ensure_machines(store_id, target_machines)
+    machine_list = sorted(target_machines)
+else:
+    # Fallback or other stores
+    machine_list = db.get_all_machine_numbers(store_id)
+    if not machine_list:
+        machine_list = [1] # Dummy
 
-# Force machine list to 987-1004
-machine_list = list(range(987, 1005))
 m_num = st.sidebar.selectbox("台番号", machine_list)
 
 # Get Machine Stats & Weighted Averages
