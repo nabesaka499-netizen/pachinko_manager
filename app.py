@@ -47,7 +47,15 @@ mid, _ = db.get_or_create_machine(store_id, m_num)
 w_base, w_out, t_spins, t_inv, t_out, t_hits, rec_count = db.get_machine_weighted_stats(store_id, m_num)
 
 if rec_count > 0:
-    st.sidebar.info(f"過去{rec_count}回の実戦データから算出した平均ベース：{w_base:.1f}")
+    # Calculate investment units (1 unit = 250 balls)
+    inv_units = t_inv / 250.0
+    st.sidebar.info(f"""
+    **過去{rec_count}回の実戦データ平均**
+    - **平均ベース**: {w_base:.1f}
+      └ ({t_spins:,}回転 / {inv_units:,.1f}単位)
+    - **平均出玉**: {w_out:.0f}
+      └ ({t_out:,}玉 / {t_hits}回)
+    """)
 
 # Result Input
 st.sidebar.markdown("---")
