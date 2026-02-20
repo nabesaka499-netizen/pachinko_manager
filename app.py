@@ -10,12 +10,12 @@ import importlib
 importlib.reload(logic)
 importlib.reload(db)
 
-st.set_page_config(page_title="Pachinko Manager (Sea Story 4 SP)", layout="wide")
+st.set_page_config(page_title="ホール別　実践データ管理表", layout="wide")
 
 # Init DB
 db.init_db()
 
-st.title("🌊 Sea Story 4 SP Expectation Manager")
+st.title("🌊 ホール別　実践データ管理表")
 
 # Store Configuration
 # Define ranges with exclusion logic (4 and 9)
