@@ -69,24 +69,32 @@ if st.sidebar.button("備考を保存"):
 st.sidebar.markdown("---")
 st.sidebar.subheader("実戦データ入力")
 # Investment in 1k yen units (1 unit = 250 balls)
-inv_k = st.sidebar.number_input("投資 (千円)", 0, 200, 10, step=1)
-spins = st.sidebar.number_input("総回転数", 0, 3000, 0)
+inv_k = st.sidebar.number_input("投資 (千円)", min_value=0, max_value=200, value=None, step=1, placeholder="0")
+spins = st.sidebar.number_input("総回転数", min_value=0, max_value=3000, value=None, step=1, placeholder="0")
 # Using "Total Hits" to calc avg out 
-total_hits = st.sidebar.number_input("総当たり回数 (10R)", 0, 50, 0) 
+total_hits = st.sidebar.number_input("総当たり回数 (10R)", min_value=0, max_value=50, value=None, step=1, placeholder="0") 
 # User said "Total Out Balls (10R)". 
 # Usually we input: "Total Won Balls".
-total_out = st.sidebar.number_input("総出玉", 0, 50000, 0)
+total_out = st.sidebar.number_input("総出玉", min_value=0, max_value=50000, value=None, step=1, placeholder="0")
 
 
 col_btn1, col_btn2 = st.sidebar.columns(2)
 with col_btn1:
     if st.sidebar.button("記録"):
-        if spins > 0:
+        # Handle None input (treat as 0)
+        v_inv = inv_k if inv_k is not None else 0
+        v_spins = spins if spins is not None else 0
+        v_hits = total_hits if total_hits is not None else 0
+        v_out = total_out if total_out is not None else 0
+
+        if v_spins > 0:
             # Convert 1k yen to balls (1k = 250 balls)
-            inv_balls = inv_k * 250
-            db.add_record(store_id, m_num, inv_balls, spins, total_hits, total_out)
+            inv_balls = v_inv * 250
+            db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
             st.success("保存しました。")
             st.rerun()
+        else:
+            st.error("回転数を入力してください。")
 with col_btn2:
     if st.button("1件削除", type="primary"):
         db.delete_last_record(store_id, m_num)
