@@ -20,7 +20,7 @@ st.title("🌊 Sea Story 4 SP Expectation Manager")
 # Store Configuration
 STORE_CONFIG = {
     "ラフェスタ 5": list(range(987, 1005)),
-    "999": list(range(93, 101)) + list(range(141, 149))
+    "999": list(range(81, 85)) + list(range(86, 88)) + list(range(93, 101)) + list(range(141, 149))
 }
 
 # Sidebar: Inputs and Machine Selection
@@ -129,35 +129,36 @@ if st.sidebar.button("直前の削除を取り消す"):
     else:
         st.error("復活できるデータがありません。")
 
-# Main Area: Calculator
-st.subheader("期待値計算")
+# Main Area: Calculator (Only for Lafesta 5)
+if selected_store_name == "ラフェスタ 5":
+    st.subheader("期待値計算")
 
-# Calculator Inputs - Using Number Input (Tab-like precision)
-col_input1, col_input2, col_input3, col_input4 = st.columns(4)
-with col_input1:
-    cur_spins = st.number_input("残り回転数", 0, 1500, 450, step=10)
-with col_input2:
-    # Default base is "Weighted Base" if available, else 20
-    default_base = float(w_base) if w_base > 10 else 20.0
-    cur_base = st.number_input("現在のベース", 10.0, 30.0, default_base, step=0.1, format="%.1f")
-with col_input3:
-    cur_rate = st.number_input("換金率 (玉/100円)", 20.0, 50.0, float(rate), step=0.1, format="%.1f")
-with col_input4:
-    # Default average from weighted stats
-    default_out = int(w_out) if w_out > 1000 else 1400
-    # Clamp default value to be within valid range
-    default_out = max(1300, min(1500, default_out))
-    
-    cur_avg_out = st.number_input("平均出玉 (R)", 1300, 1500, default_out, step=5) 
+    # Calculator Inputs - Using Number Input (Tab-like precision)
+    col_input1, col_input2, col_input3, col_input4 = st.columns(4)
+    with col_input1:
+        cur_spins = st.number_input("残り回転数", 0, 1500, 450, step=10)
+    with col_input2:
+        # Default base is "Weighted Base" if available, else 20
+        default_base = float(w_base) if w_base > 10 else 20.0
+        cur_base = st.number_input("現在のベース", 10.0, 30.0, default_base, step=0.1, format="%.1f")
+    with col_input3:
+        cur_rate = st.number_input("換金率 (玉/100円)", 20.0, 50.0, float(rate), step=0.1, format="%.1f")
+    with col_input4:
+        # Default average from weighted stats
+        default_out = int(w_out) if w_out > 1000 else 1400
+        # Clamp default value to be within valid range
+        default_out = max(1300, min(1500, default_out))
+        
+        cur_avg_out = st.number_input("平均出玉 (R)", 1300, 1500, default_out, step=5) 
 
-# Validation inputs
-exp_val = logic.calculate_expectation(cur_base, cur_spins, cur_rate, cur_avg_out, False)
+    # Validation inputs
+    exp_val = logic.calculate_expectation(cur_base, cur_spins, cur_rate, cur_avg_out, False)
 
-# Display Results
-c1 = st.container()
-c1.metric("期待値", f"¥{exp_val:,}")
+    # Display Results
+    c1 = st.container()
+    c1.metric("期待値", f"¥{exp_val:,}")
 
-st.divider()
+    st.divider()
 
 # Machine Statistics Section (Bottom)
 st.divider()
