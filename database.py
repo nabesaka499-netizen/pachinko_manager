@@ -425,3 +425,87 @@ def get_all_machines_status(store_id):
         
     conn.close()
     return data
+
+def get_machine_history(store_id, machine_number, limit=5):
+    mid, _ = get_or_create_machine(store_id, machine_number)
+    conn = sqlite3.connect(DB_PATH)
+    # columns: id, date, investment_balls, spins, hits, out_balls, base_calculated, out_10r_calculated
+    df = pd.read_sql_query("SELECT id, date, investment_balls/250.0 as inv_units, spins, hits, out_balls, base_calculated, out_10r_calculated FROM records WHERE machine_id=? ORDER BY id DESC LIMIT ?", 
+                           conn, params=(mid, limit))
+    conn.close()
+    return df
+
+def delete_record_by_id(record_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Get machine_id first to update stats later
+    c.execute("SELECT machine_id FROM records WHERE id=?", (record_id,))
+    res = c.fetchone()
+    if res:
+        mid = res[0]
+        # Backup to deleted_records
+        c.execute("SELECT * FROM records WHERE id=?", (record_id,))
+        row = c.fetchone()
+        if row:
+            # records row: 0:id, 1:mid, 2:date, 3:inv, 4:spins, 5:hits, 6:out, 7:base, 8:out10r
+            c.execute('''INSERT INTO deleted_records 
+                         (original_record_id, machine_id, date, investment_balls, spins, hits, out_balls, base_calculated, out_10r_calculated)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                      (row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]))
+        
+        # Delete
+        c.execute("DELETE FROM records WHERE id=?", (record_id,))
+        
+        # Update machine stats
+        update_machine_stats(c, mid)
+        conn.commit()
+        conn.close()
+        return True
+    conn.close()
+    return False
+
+def get_model_weighted_stats(store_id, machine_numbers):
+    """
+    Returns (weighted_base, weighted_avg_out, record_count) for a group of machines.
+    """
+    if not machine_numbers:
+        return 0, 1400.0, 0
+        
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Get IDs for these machine numbers
+    placeholders = ','.join(['?'] * len(machine_numbers))
+    query = f"SELECT id FROM machines WHERE store_id=? AND machine_number IN ({placeholders})"
+    c.execute(query, [store_id] + list(machine_numbers))
+    mid_rows = c.fetchall()
+    mids = [r[0] for r in mid_rows]
+    
+    if not mids:
+        conn.close()
+        return 0, 1400.0, 0
+        
+    # Aggregate stats across all records for these machines
+    mid_placeholders = ','.join(['?'] * len(mids))
+    c.execute(f"SELECT SUM(spins), SUM(investment_balls), SUM(hits), SUM(out_balls), COUNT(id) FROM records WHERE machine_id IN ({mid_placeholders})", mids)
+    row = c.fetchone()
+    conn.close()
+    
+    if not row or not row[0]:
+        return 0, 1400.0, 0
+        
+    t_spins = row[0]
+    t_inv_balls = row[1]
+    t_hits = row[2]
+    t_out_balls = row[3]
+    record_count = row[4]
+    
+    # Weighted Base
+    inv_units = t_inv_balls / 250.0
+    weighted_base = t_spins / inv_units if inv_units > 0 else 0
+    
+    # Weighted Avg Out
+    weighted_out = t_out_balls / t_hits if t_hits > 0 else 1400.0
+    
+    return weighted_base, weighted_out, record_count

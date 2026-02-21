@@ -95,18 +95,56 @@ mid, _ = db.get_or_create_machine(store_id, m_num)
 # Now returns 7 values including record_count
 w_base, w_out, t_spins, t_inv, t_out, t_hits, rec_count = db.get_machine_weighted_stats(store_id, m_num)
 
+# 1. Determine Model (Island) for the selected machine
+current_model_name = "不明"
+current_model_machines = []
+
+# Move model config definition up or refer to a consolidated one
+# Let's use the one at the bottom, or just define it here.
+# Actually, the one at the bottom is for display grouping. I should unify them.
+MODEL_GROUPS = {
+    "999": {
+        "P大海物語5スペシャル ALTA": list(range(93, 101)) + list(range(141, 149)),
+        "PA大海物語5 With アグネス･ラム ARBC": list(range(81, 85)),
+        "PA大海物語4スペシャル RBA": list(range(86, 88))
+    },
+    "スーパーハリウッド1000": {
+        "P大海物語5スペシャル ALTA": sh_alta,
+        "PA大海物語5 With アグネス･ラム ARBC": sh_agnes,
+        "PA新海物語 ARBB": sh_shinkai
+    },
+    "ラフェスタ 5": {
+        "大海4SP": STORE_CONFIG["ラフェスタ 5"]
+    }
+}
+
+if selected_store_name in MODEL_GROUPS:
+    for mname, mnums in MODEL_GROUPS[selected_store_name].items():
+        if m_num in mnums:
+            current_model_name = mname
+            current_model_machines = mnums
+            break
+
+# 2. Get Island Stats
+i_base, i_out, i_rec_count = db.get_model_weighted_stats(store_id, current_model_machines)
+
+# 3. Sidebar Display: Stats
 if rec_count > 0:
-    # Calculate investment units (1 unit = 250 balls)
     inv_units = t_inv / 250.0
     st.sidebar.info(f"""
-    **過去{rec_count}回の実戦データ平均**
-    - **平均ベース**: {w_base:.1f}
-      └ ({t_spins:,}回転 / {inv_units:,.1f}単位)
-    - **平均出玉**: {w_out:.0f}
-      └ ({t_out:,}玉 / {t_hits}回)
+    **台#{m_num} 実戦平均** ({rec_count}回)
+    - **ベース**: {w_base:.1f} ({t_spins:,} / {inv_units:,.1f})
+    - **出玉**: {w_out:.0f} ({t_out:,} / {t_hits})
     """)
 
-# Remarks Input
+if i_rec_count > 0:
+    st.sidebar.success(f"""
+    **シマ平均 [{current_model_name}]** ({i_rec_count}回)
+    - **ベース**: {i_base:.1f}
+    - **出玉**: {i_out:.0f}
+    """)
+
+# 4. Remarks Input
 current_remarks = db.get_machine_remarks(store_id, m_num)
 new_remarks = st.sidebar.text_area("備考", current_remarks)
 if st.sidebar.button("備考を保存"):
@@ -114,30 +152,47 @@ if st.sidebar.button("備考を保存"):
     st.success("備考を保存しました。")
     st.rerun()
 
-# Result Input
+# 5. History Management: Delete Specific Records
+st.sidebar.markdown("---")
+st.sidebar.subheader("履歴管理 (最新5件)")
+history_df = db.get_machine_history(store_id, m_num, limit=5)
+if not history_df.empty:
+    for idx, row in history_df.iterrows():
+        rid = row['id']
+        date_str = row['date']
+        # Display: 02-22: 21.5 / 1420
+        label = f"{date_str[5:]}: {row['base_calculated']:.1f} / {int(row['out_10r_calculated'])}"
+        if st.sidebar.button(f"削除 {label}", key=f"del_{rid}"):
+            if db.delete_record_by_id(rid):
+                st.sidebar.success(f"{label} を削除しました。")
+                st.rerun()
+else:
+    st.sidebar.caption("履歴がありません。")
+
+if st.sidebar.button("直前の削除を元に戻す"):
+    if db.restore_last_record(store_id, m_num):
+        st.success("データを復活させました。")
+        st.rerun()
+    else:
+        st.error("復活できるデータがありません。")
+
+# 6. Result Input
 st.sidebar.markdown("---")
 st.sidebar.subheader("実戦データ入力")
-# Investment in 1k yen units (1 unit = 250 balls)
 inv_k = st.sidebar.number_input("投資 (千円)", min_value=0, max_value=200, value=None, step=1, placeholder="0")
 spins = st.sidebar.number_input("総回転数", min_value=0, max_value=3000, value=None, step=1, placeholder="0")
-# Using "Total Hits" to calc avg out 
 total_hits = st.sidebar.number_input("総当たり回数 (10R)", min_value=0, max_value=50, value=None, step=1, placeholder="0") 
-# User said "Total Out Balls (10R)". 
-# Usually we input: "Total Won Balls".
 total_out = st.sidebar.number_input("総出玉", min_value=0, max_value=50000, value=None, step=1, placeholder="0")
-
 
 col_btn1, col_btn2 = st.sidebar.columns(2)
 with col_btn1:
     if st.sidebar.button("記録"):
-        # Handle None input (treat as 0)
         v_inv = inv_k if inv_k is not None else 0
         v_spins = spins if spins is not None else 0
         v_hits = total_hits if total_hits is not None else 0
         v_out = total_out if total_out is not None else 0
 
         if v_spins > 0:
-            # Convert 1k yen to balls (1k = 250 balls)
             inv_balls = v_inv * 250
             db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
             st.success("保存しました。")
@@ -150,13 +205,6 @@ with col_btn2:
         st.warning("最新のデータを1件削除しました。")
         st.rerun()
 
-if st.sidebar.button("直前の削除を取り消す"):
-    if db.restore_last_record(store_id, m_num):
-        st.success("データを復活させました。")
-        st.rerun()
-    else:
-        st.error("復活できるデータがありません。")
-
 # Main Area: Calculator
 # Dynamic Settings based on Store
 if selected_store_name == "ラフェスタ 5":
@@ -165,29 +213,38 @@ if selected_store_name == "ラフェスタ 5":
     default_rate = float(rate) # Typically 27.0
     default_out_std = 1400
 else:
-    calc_title = "P大海物語5SP ALTA　期待値計算"
+    calc_title = f"{current_model_name} 期待値計算"
     calc_model = "大海5SP"
     default_rate = 27.5
     default_out_std = 1390
 
 st.subheader(calc_title)
 
-# Calculator Inputs - Using Number Input (Tab-like precision)
+# Calculator Inputs
 col_input1, col_input2, col_input3, col_input4 = st.columns(4)
 with col_input1:
     cur_spins = st.number_input("残り回転数", 0, 1500, 450, step=10)
 with col_input2:
-    # Default base is "Weighted Base" if available, else 20
-    default_base = float(w_base) if w_base > 10 else 20.0
+    # Default priority: Island Average > Weighted Base > 20.0
+    if i_rec_count > 0:
+        default_base = float(i_base)
+    elif w_base > 10:
+        default_base = float(w_base)
+    else:
+        default_base = 20.0
     cur_base = st.number_input("現在のベース", 10.0, 30.0, default_base, step=0.1, format="%.1f")
 with col_input3:
     cur_rate = st.number_input("換金率 (玉/100円)", 20.0, 50.0, default_rate, step=0.1, format="%.1f")
 with col_input4:
-    # Default average from weighted stats
-    default_out = int(w_out) if w_out > 1000 else default_out_std
-    # Clamp default value to be within valid range
-    default_out = max(1300, min(1550, default_out))
+    # Default priority: Island Average > Weighted Avg Out > model default
+    if i_rec_count > 0:
+        default_out = int(i_out)
+    elif w_out > 1000:
+        default_out = int(w_out)
+    else:
+        default_out = default_out_std
     
+    default_out = max(1300, min(1550, default_out))
     cur_avg_out = st.number_input("平均出玉 (R)", 1300, 1550, default_out, step=5) 
 
 # Calculate using the selected model
@@ -209,26 +266,13 @@ st.divider()
 st.subheader("📊 全台データ一覧")
 all_stats = db.get_all_machines_status(store_id)
 
-# Model Configuration for display grouping
-STORE_MODEL_CONFIG = {
-    "999": {
-        "P大海物語5スペシャル ALTA": list(range(93, 101)) + list(range(141, 149)),
-        "PA大海物語5 With アグネス･ラム ARBC": list(range(81, 85)),
-        "PA大海物語4スペシャル RBA": list(range(86, 88))
-    },
-    "スーパーハリウッド1000": {
-        "P大海物語5スペシャル ALTA": sh_alta,
-        "PA大海物語5 With アグネス･ラム ARBC": sh_agnes,
-        "PA新海物語 ARBB": sh_shinkai
-    }
-}
-
+# Model Configuration for display grouping (Using MODEL_GROUPS defined above)
 if all_stats:
     df_all = pd.DataFrame(all_stats)
     
     # Check if we have specific model grouping for this store
-    if selected_store_name in STORE_MODEL_CONFIG:
-        model_map = STORE_MODEL_CONFIG[selected_store_name]
+    if selected_store_name in MODEL_GROUPS:
+        model_map = MODEL_GROUPS[selected_store_name]
         
         for model_name, machine_nums in model_map.items():
             # Filter df for these machines
