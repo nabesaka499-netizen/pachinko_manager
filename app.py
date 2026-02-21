@@ -263,11 +263,13 @@ est_time = logic.get_estimated_time(cur_spins, calc_model)
 hourly_wage = int((exp_val / est_time) * 60)
 
 # Display Results
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns(3)
 with c1:
     st.metric("期待値", f"¥{exp_val:,}")
 with c2:
-    st.metric("時給 (見込)", f"¥{hourly_wage:,}", help=f"消化時間: 約{int(est_time)}分")
+    st.metric("時給 (見込)", f"¥{hourly_wage:,}")
+with c3:
+    st.metric("消化時間", f"約{int(est_time)}分")
 
 st.divider()
 
