@@ -183,18 +183,26 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("実戦データ入力")
 
 # Use keys for easy resetting
-inv_k = st.sidebar.number_input("投資 (千円)", min_value=0, max_value=200, value=None, step=1, placeholder="0", key="input_inv")
-spins = st.sidebar.number_input("総回転数", min_value=0, max_value=3000, value=None, step=1, placeholder="0", key="input_spins")
-total_hits = st.sidebar.number_input("総当たり回数 (10R)", min_value=0, max_value=50, value=None, step=1, placeholder="0", key="input_hits") 
-total_out = st.sidebar.number_input("総出玉", min_value=0, max_value=50000, value=None, step=1, placeholder="0", key="input_out")
+inv_k_raw = st.sidebar.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
+spins_raw = st.sidebar.text_input("総回転数", value="", placeholder="0", key="input_spins")
+total_hits_raw = st.sidebar.text_input("総当たり回数 (10R)", value="", placeholder="0", key="input_hits") 
+total_out_raw = st.sidebar.text_input("総出玉", value="", placeholder="0", key="input_out")
+
+# Helper to safely convert text to numeric
+def safe_to_num(val, is_int=True):
+    try:
+        if not val: return 0
+        return int(val) if is_int else float(val)
+    except ValueError:
+        return 0
 
 col_btn1, col_btn2 = st.sidebar.columns(2)
 with col_btn1:
     if st.sidebar.button("記録"):
-        v_inv = inv_k if inv_k is not None else 0
-        v_spins = spins if spins is not None else 0
-        v_hits = total_hits if total_hits is not None else 0
-        v_out = total_out if total_out is not None else 0
+        v_inv = safe_to_num(inv_k_raw)
+        v_spins = safe_to_num(spins_raw)
+        v_hits = safe_to_num(total_hits_raw)
+        v_out = safe_to_num(total_out_raw)
 
         if v_spins > 0:
             inv_balls = v_inv * 250
@@ -205,7 +213,7 @@ with col_btn1:
             
             # Clear inputs in session state
             for k in ["input_inv", "input_spins", "input_hits", "input_out", "input_remarks"]:
-                st.session_state[k] = None if k != "input_remarks" else ""
+                st.session_state[k] = ""
                 
             st.success("保存しました。入力内容と備考をリセットしました。")
             st.rerun()
