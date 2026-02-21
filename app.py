@@ -220,7 +220,8 @@ if selected_store_name == "ラフェスタ 5":
     default_rate = float(rate) # Typically 27.0
     default_out_std = 1400
 else:
-    calc_title = f"{current_model_name} 期待値計算"
+    # Fixed title for non-Lafesta stores as requested
+    calc_title = "P大海物語5スペシャル ALTA 期待値計算"
     calc_model = "大海5SP"
     default_rate = 27.5
     default_out_std = 1390
