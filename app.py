@@ -179,10 +179,12 @@ if st.sidebar.button("直前の削除を元に戻す"):
 # 6. Result Input
 st.sidebar.markdown("---")
 st.sidebar.subheader("実戦データ入力")
-inv_k = st.sidebar.number_input("投資 (千円)", min_value=0, max_value=200, value=None, step=1, placeholder="0")
-spins = st.sidebar.number_input("総回転数", min_value=0, max_value=3000, value=None, step=1, placeholder="0")
-total_hits = st.sidebar.number_input("総当たり回数 (10R)", min_value=0, max_value=50, value=None, step=1, placeholder="0") 
-total_out = st.sidebar.number_input("総出玉", min_value=0, max_value=50000, value=None, step=1, placeholder="0")
+
+# Use keys for easy resetting
+inv_k = st.sidebar.number_input("投資 (千円)", min_value=0, max_value=200, value=None, step=1, placeholder="0", key="input_inv")
+spins = st.sidebar.number_input("総回転数", min_value=0, max_value=3000, value=None, step=1, placeholder="0", key="input_spins")
+total_hits = st.sidebar.number_input("総当たり回数 (10R)", min_value=0, max_value=50, value=None, step=1, placeholder="0", key="input_hits") 
+total_out = st.sidebar.number_input("総出玉", min_value=0, max_value=50000, value=None, step=1, placeholder="0", key="input_out")
 
 col_btn1, col_btn2 = st.sidebar.columns(2)
 with col_btn1:
@@ -195,7 +197,12 @@ with col_btn1:
         if v_spins > 0:
             inv_balls = v_inv * 250
             db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
-            st.success("保存しました。")
+            
+            # Clear inputs in session state
+            for k in ["input_inv", "input_spins", "input_hits", "input_out"]:
+                st.session_state[k] = None
+                
+            st.success("保存しました。入力内容をリセットしました。")
             st.rerun()
         else:
             st.error("回転数を入力してください。")
