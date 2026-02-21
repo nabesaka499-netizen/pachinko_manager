@@ -470,7 +470,7 @@ def get_model_weighted_stats(store_id, machine_numbers):
     Returns (weighted_base, weighted_avg_out, record_count) for a group of machines.
     """
     if not machine_numbers:
-        return 0, 1400.0, 0
+        return 0, 1400.0, 0, 0, 0, 0, 0
         
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -484,7 +484,7 @@ def get_model_weighted_stats(store_id, machine_numbers):
     
     if not mids:
         conn.close()
-        return 0, 1400.0, 0
+        return 0, 1400.0, 0, 0, 0, 0, 0
         
     # Aggregate stats across all records for these machines
     mid_placeholders = ','.join(['?'] * len(mids))
@@ -493,7 +493,7 @@ def get_model_weighted_stats(store_id, machine_numbers):
     conn.close()
     
     if not row or not row[0]:
-        return 0, 1400.0, 0
+        return 0, 1400.0, 0, 0, 0, 0, 0
         
     t_spins = row[0]
     t_inv_balls = row[1]
