@@ -232,6 +232,9 @@ with col_input2:
         default_base = float(w_base)
     else:
         default_base = 20.0
+    
+    # Clamp to prevent StreamlitValueOutOfBoundsError
+    default_base = max(10.0, min(30.0, default_base))
     cur_base = st.number_input("現在のベース", 10.0, 30.0, default_base, step=0.1, format="%.1f")
 with col_input3:
     cur_rate = st.number_input("換金率 (玉/100円)", 20.0, 50.0, default_rate, step=0.1, format="%.1f")
@@ -280,6 +283,17 @@ if all_stats:
             
             if not df_model.empty:
                 st.markdown(f"**{model_name}**")
+                
+                # Calculate Model Summary (Island Stats)
+                m_base, m_out, m_count = db.get_model_weighted_stats(store_id, machine_nums)
+                if m_count > 0:
+                    summary_df = pd.DataFrame([{
+                        "番号": "【平均】",
+                        "回転率(詳細)": f"{m_base:.1f} ({m_count}件)",
+                        "出玉(詳細)": f"{int(m_out):,}",
+                        "備考": "シマ加重平均"
+                    }])
+                    df_model = pd.concat([df_model, summary_df], ignore_index=True)
                 
                 # Ensure column order
                 df_model = df_model[["番号", "回転率(詳細)", "出玉(詳細)", "備考"]]
