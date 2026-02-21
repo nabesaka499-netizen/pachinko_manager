@@ -146,9 +146,11 @@ if i_rec_count > 0:
 
 # 4. Remarks Input
 current_remarks = db.get_machine_remarks(store_id, m_num)
-new_remarks = st.sidebar.text_area("備考", current_remarks)
+# Use key for remarks to allow resetting
+new_remarks_val = st.sidebar.text_area("備考", current_remarks, key="input_remarks")
+
 if st.sidebar.button("備考を保存"):
-    db.update_machine_remarks(store_id, m_num, new_remarks)
+    db.update_machine_remarks(store_id, m_num, new_remarks_val)
     st.success("備考を保存しました。")
     st.rerun()
 
@@ -198,11 +200,14 @@ with col_btn1:
             inv_balls = v_inv * 250
             db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
             
+            # Clear remarks in DB as well since user wants it emptied
+            db.update_machine_remarks(store_id, m_num, "")
+            
             # Clear inputs in session state
-            for k in ["input_inv", "input_spins", "input_hits", "input_out"]:
-                st.session_state[k] = None
+            for k in ["input_inv", "input_spins", "input_hits", "input_out", "input_remarks"]:
+                st.session_state[k] = None if k != "input_remarks" else ""
                 
-            st.success("保存しました。入力内容をリセットしました。")
+            st.success("保存しました。入力内容と備考をリセットしました。")
             st.rerun()
         else:
             st.error("回転数を入力してください。")
