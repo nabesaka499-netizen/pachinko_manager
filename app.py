@@ -259,10 +259,15 @@ with col_input4:
 
 # Calculate using the selected model
 exp_val = logic.calculate_expectation(cur_base, cur_spins, cur_rate, cur_avg_out, calc_model)
+est_time = logic.get_estimated_time(cur_spins, calc_model)
+hourly_wage = int((exp_val / est_time) * 60)
 
 # Display Results
-c1 = st.container()
-c1.metric("期待値", f"¥{exp_val:,}")
+c1, c2 = st.columns(2)
+with c1:
+    st.metric("期待値", f"¥{exp_val:,}")
+with c2:
+    st.metric("時給 (見込)", f"¥{hourly_wage:,}", help=f"消化時間: 約{int(est_time)}分")
 
 st.divider()
 

@@ -114,6 +114,38 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
     
     return int(ev_yen)
 
+def get_estimated_time(remaining_spins, model_type="大海4SP"):
+    """
+    Returns estimated total time (minutes) to finish the session, 
+    based on user-provided simulation data for '大海4SP'.
+    100G: 46m, 200G: 57m, 300G: 64m, 400G: 70m, 500G: 74m
+    """
+    points = [
+        (100, 46.0),
+        (200, 57.0),
+        (300, 64.0),
+        (400, 70.0),
+        (500, 74.0)
+    ]
+    s = float(remaining_spins)
+    
+    if s <= 100:
+        p1, p2 = points[0], points[1]
+    elif s >= 500:
+        p1, p2 = points[-2], points[-1]
+    else:
+        p1, p2 = points[0], points[1]
+        for i in range(len(points) - 1):
+            if points[i][0] <= s <= points[i+1][0]:
+                p1, p2 = points[i], points[i+1]
+                break
+    
+    slope = (p2[1] - p1[1]) / (p2[0] - p1[0])
+    est_min = p1[1] + (s - p1[0]) * slope
+    
+    # Floor at 30 mins (avg loop duration if s=0)
+    return max(30.0, est_min)
+
 def get_base_curve(base, exchange_rate, machine_out, model_type="大海4SP"):
     points = []
     for b in [x * 0.5 for x in range(30, 51)]: # 15 to 25
