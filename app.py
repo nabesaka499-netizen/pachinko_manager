@@ -126,7 +126,7 @@ if selected_store_name in MODEL_GROUPS:
             break
 
 # 2. Get Island Stats
-i_base, i_out, i_rec_count = db.get_model_weighted_stats(store_id, current_model_machines)
+i_base, i_out, _, _, _, _, i_rec_count = db.get_model_weighted_stats(store_id, current_model_machines)
 
 # 3. Sidebar Display: Stats
 if rec_count > 0:
@@ -171,12 +171,6 @@ if not history_df.empty:
 else:
     st.sidebar.caption("履歴がありません。")
 
-if st.sidebar.button("直前の削除を元に戻す"):
-    if db.restore_last_record(store_id, m_num):
-        st.success("データを復活させました。")
-        st.rerun()
-    else:
-        st.error("復活できるデータがありません。")
 
 # 6. Result Input
 st.sidebar.markdown("---")
@@ -196,34 +190,27 @@ def safe_to_num(val, is_int=True):
     except ValueError:
         return 0
 
-col_btn1, col_btn2 = st.sidebar.columns(2)
-with col_btn1:
-    if st.sidebar.button("記録"):
-        v_inv = safe_to_num(inv_k_raw)
-        v_spins = safe_to_num(spins_raw)
-        v_hits = safe_to_num(total_hits_raw)
-        v_out = safe_to_num(total_out_raw)
+if st.sidebar.button("記録", use_container_width=True):
+    v_inv = safe_to_num(inv_k_raw)
+    v_spins = safe_to_num(spins_raw)
+    v_hits = safe_to_num(total_hits_raw)
+    v_out = safe_to_num(total_out_raw)
 
-        if v_spins > 0:
-            inv_balls = v_inv * 250
-            db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
+    if v_spins > 0:
+        inv_balls = v_inv * 250
+        db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
+        
+        # Clear remarks in DB as well since user wants it emptied
+        db.update_machine_remarks(store_id, m_num, "")
+        
+        # Clear inputs in session state
+        for k in ["input_inv", "input_spins", "input_hits", "input_out", "input_remarks"]:
+            st.session_state[k] = ""
             
-            # Clear remarks in DB as well since user wants it emptied
-            db.update_machine_remarks(store_id, m_num, "")
-            
-            # Clear inputs in session state
-            for k in ["input_inv", "input_spins", "input_hits", "input_out", "input_remarks"]:
-                st.session_state[k] = ""
-                
-            st.success("保存しました。入力内容と備考をリセットしました。")
-            st.rerun()
-        else:
-            st.error("回転数を入力してください。")
-with col_btn2:
-    if st.button("1件削除", type="primary"):
-        db.delete_last_record(store_id, m_num)
-        st.warning("最新のデータを1件削除しました。")
+        st.success("保存しました。入力内容と備考をリセットしました。")
         st.rerun()
+    else:
+        st.error("回転数を入力してください。")
 
 # Main Area: Calculator
 # Dynamic Settings based on Store
@@ -305,13 +292,14 @@ if all_stats:
                 st.markdown(f"**{model_name}**")
                 
                 # Calculate Model Summary (Island Stats)
-                m_base, m_out, m_count = db.get_model_weighted_stats(store_id, machine_nums)
+                m_base, m_out, m_spins, m_inv, m_out_balls, m_hits, m_count = db.get_model_weighted_stats(store_id, machine_nums)
                 if m_count > 0:
+                    m_inv_units = m_inv / 250.0
                     summary_df = pd.DataFrame([{
                         "番号": "【平均】",
-                        "回転率(詳細)": f"{m_base:.1f} ({m_count}件)",
-                        "出玉(詳細)": f"{int(m_out):,}",
-                        "備考": "シマ加重平均"
+                        "回転率(詳細)": f"{m_base:.1f} ({m_spins:,}/{m_inv_units:,.1f})",
+                        "出玉(詳細)": f"{int(m_out):,} ({m_out_balls:,}/{m_hits})",
+                        "備考": f"シマ加重平均 ({m_count}件)"
                     }])
                     df_model = pd.concat([df_model, summary_df], ignore_index=True)
                 

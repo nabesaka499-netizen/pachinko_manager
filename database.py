@@ -508,4 +508,4 @@ def get_model_weighted_stats(store_id, machine_numbers):
     # Weighted Avg Out
     weighted_out = t_out_balls / t_hits if t_hits > 0 else 1400.0
     
-    return weighted_base, weighted_out, record_count
+    return weighted_base, weighted_out, t_spins, t_inv_balls, t_out_balls, t_hits, record_count
