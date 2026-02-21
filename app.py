@@ -179,7 +179,7 @@ st.sidebar.subheader("実戦データ入力")
 # Use keys for easy resetting
 inv_k_raw = st.sidebar.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
 spins_raw = st.sidebar.text_input("総回転数", value="", placeholder="0", key="input_spins")
-total_hits_raw = st.sidebar.text_input("総当たり回数 (10R)", value="", placeholder="0", key="input_hits") 
+total_hits_raw = st.sidebar.text_input("総当たり回数", value="", placeholder="0", key="input_hits") 
 total_out_raw = st.sidebar.text_input("総出玉", value="", placeholder="0", key="input_out")
 
 # Helper to safely convert text to numeric
