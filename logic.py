@@ -163,13 +163,13 @@ def get_expected_hits(remaining_spins, model_type="大海4SP"):
     based on user-provided simulation data.
     """
     if model_type == "大海5SP":
-        # Refined measured point data for Sea Story 5 SP
+        # Reverting to previous points as requested (measured values were incorrect)
         points = [
-            (100, 3.0),
-            (200, 3.2),
-            (300, 3.3),
-            (400, 3.4),
-            (500, 3.5)
+            (100, 2.4),
+            (200, 2.6),
+            (300, 2.7),
+            (400, 2.8),
+            (500, 2.9)
         ]
         s = float(remaining_spins)
         if s <= 100:
