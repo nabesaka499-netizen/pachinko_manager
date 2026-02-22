@@ -57,14 +57,14 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
     # 1. Machine Specific Parameters
     if model_type == "大海5SP":
         p = 1.0 / 319.6  # Sea Story 5 SP
-        std_out = 1390.0
+        std_out = 1400.0
         border_points = [
-            (100, 6.14),
-            (200, 9.98),
-            (300, 12.50),
-            (400, 14.22),
-            (500, 15.41),
-            (600, 16.24)
+            (100, 6.09),
+            (200, 9.91),
+            (300, 12.41),
+            (400, 14.12),
+            (500, 15.30),
+            (600, 16.15)
         ]
     else:
         # Default: 大海4SP
@@ -163,13 +163,13 @@ def get_expected_hits(remaining_spins, model_type="大海4SP"):
     based on user-provided simulation data.
     """
     if model_type == "大海5SP":
-        # Reverting to previous points as requested (measured values were incorrect)
+        # Refined points from provided reference images
         points = [
-            (100, 2.4),
-            (200, 2.6),
-            (300, 2.7),
-            (400, 2.8),
-            (500, 2.9)
+            (100, 2.52),
+            (200, 2.68),
+            (300, 2.80),
+            (400, 2.89),
+            (500, 2.95)
         ]
         s = float(remaining_spins)
         if s <= 100:

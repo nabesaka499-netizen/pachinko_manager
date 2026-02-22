@@ -227,7 +227,7 @@ else:
     calc_title = "P大海物語5スペシャル ALTA 期待値計算"
     calc_model = "大海5SP"
     default_rate = 27.5
-    default_out_std = 1390
+    default_out_std = 1400
 
 st.subheader(calc_title)
 
