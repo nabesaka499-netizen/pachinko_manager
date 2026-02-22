@@ -174,17 +174,6 @@ else:
 
 # 6. Result Input
 st.sidebar.markdown("---")
-st.sidebar.subheader("実戦データ入力")
-
-# Use keys for easy resetting
-# Narrowing input fields for mobile (exactly 1/3 width)
-col_in1, _ = st.sidebar.columns([1, 2])
-with col_in1:
-    inv_k_raw = st.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
-    spins_raw = st.text_input("総回転数", value="", placeholder="0", key="input_spins")
-    total_hits_raw = st.text_input("総当たり回数", value="", placeholder="0", key="input_hits") 
-    total_out_raw = st.text_input("総出玉", value="", placeholder="0", key="input_out")
-
 # Helper to safely convert text to numeric
 def safe_to_num(val, is_int=True):
     try:
@@ -193,17 +182,18 @@ def safe_to_num(val, is_int=True):
     except ValueError:
         return 0
 
+# Action: Record Data (Moved above widgets to avoid StreamlitAPIException)
 if st.sidebar.button("記録", use_container_width=True):
-    v_inv = safe_to_num(inv_k_raw)
-    v_spins = safe_to_num(spins_raw)
-    v_hits = safe_to_num(total_hits_raw)
-    v_out = safe_to_num(total_out_raw)
+    v_inv = safe_to_num(st.session_state.get("input_inv", ""))
+    v_spins = safe_to_num(st.session_state.get("input_spins", ""))
+    v_hits = safe_to_num(st.session_state.get("input_hits", ""))
+    v_out = safe_to_num(st.session_state.get("input_out", ""))
 
     if v_spins > 0:
         inv_balls = v_inv * 250
         db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
         
-        # Clear remarks in DB as well since user wants it emptied
+        # Clear remarks in DB as well
         db.update_machine_remarks(store_id, m_num, "")
         
         # Clear inputs in session state
@@ -214,6 +204,17 @@ if st.sidebar.button("記録", use_container_width=True):
         st.rerun()
     else:
         st.error("回転数を入力してください。")
+
+st.sidebar.subheader("実戦データ入力")
+
+# Use keys for easy resetting
+# Narrowing input fields for mobile (exactly 1/3 width)
+col_in1, _ = st.sidebar.columns([1, 2])
+with col_in1:
+    st.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
+    st.text_input("総回転数", value="", placeholder="0", key="input_spins")
+    st.text_input("総当たり回数", value="", placeholder="0", key="input_hits") 
+    st.text_input("総出玉", value="", placeholder="0", key="input_out")
 
 # Main Area: Calculator
 # Dynamic Settings based on Store
