@@ -239,16 +239,25 @@ else:
 st.subheader(calc_title)
 
 # Calculator Inputs
+# Fix: Strictly use model-wide (island) average for the calculated model
+calc_model_machines = MODEL_GROUPS.get(selected_store_name, {}).get(calc_title.replace(" 期待値計算", ""), [])
+if not calc_model_machines: # Fallback for title mismatches
+    if "大海4SP" in calc_title:
+        calc_model_machines = MODEL_GROUPS.get(selected_store_name, {}).get("大海4SP", [])
+    else:
+        calc_model_machines = MODEL_GROUPS.get(selected_store_name, {}).get("P大海物語5スペシャル ALTA", [])
+
+# Fetch stats specifically for the model being calculated
+c_base, c_out, _, _, _, _, c_rec_count = db.get_model_weighted_stats(store_id, calc_model_machines)
+
 col_input1, col_input2, col_input3, col_input4 = st.columns(4)
 with col_input1:
     cur_spins = st.number_input("残り回転数", 0, 1500, 450, step=10)
 with col_input2:
-    # Default priority: Island Average > Weighted Base > 20.0
+    # Default priority: Strictly Model-wide Average > 20.0
     val_base = 20.0
-    if float(i_rec_count) > 0:
-        val_base = float(i_base)
-    elif float(rec_count) > 0 and float(w_base) > 10:
-        val_base = float(w_base)
+    if float(c_rec_count) > 0:
+        val_base = float(c_base)
     
     # Clamp to prevent StreamlitValueOutOfBoundsError
     default_base = max(10.0, min(30.0, val_base))
@@ -256,12 +265,10 @@ with col_input2:
 with col_input3:
     cur_rate = st.number_input("換金率", 20.0, 50.0, float(default_rate), step=0.1, format="%.1f")
 with col_input4:
-    # Default priority: Island Average > Weighted Avg Out > model default
+    # Default priority: Strictly Model-wide Average > model default
     val_out = float(default_out_std)
-    if float(i_rec_count) > 0:
-        val_out = float(i_out)
-    elif float(rec_count) > 0 and float(w_out) > 1000:
-        val_out = float(w_out)
+    if float(c_rec_count) > 0:
+        val_out = float(c_out)
     
     default_out_final = max(1300.0, min(1550.0, val_out))
     cur_avg_out = st.number_input("平均出玉", 1300, 1550, int(default_out_final), step=5) 
