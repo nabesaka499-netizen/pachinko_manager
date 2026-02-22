@@ -128,13 +128,47 @@ if selected_store_name in MODEL_GROUPS:
 # 2. Get Island Stats
 i_base, i_out, _, _, _, _, i_rec_count = db.get_model_weighted_stats(store_id, current_model_machines)
 
+# Helper to safely convert text to numeric
+def safe_to_num(val, is_int=True):
+    try:
+        if not val: return 0
+        return int(val) if is_int else float(val)
+    except ValueError:
+        return 0
+
+# Callbacks for safe session state updates
+def save_record_callback(st_id, machine_num):
+    v_inv = safe_to_num(st.session_state.get("input_inv", ""), is_int=False)
+    v_spins = safe_to_num(st.session_state.get("input_spins", ""), is_int=True)
+    v_hits = safe_to_num(st.session_state.get("input_hits", ""), is_int=True)
+    v_out = safe_to_num(st.session_state.get("input_out", ""), is_int=True)
+
+    if v_spins > 0:
+        inv_balls = v_inv * 250
+        db.add_record(st_id, machine_num, inv_balls, v_spins, v_hits, v_out)
+        db.update_machine_remarks(st_id, machine_num, "")
+        # Reset inputs
+        for k in ["input_inv", "input_spins", "input_hits", "input_out", "input_remarks"]:
+            st.session_state[k] = ""
+        st.session_state["record_success"] = True
+    else:
+        st.session_state["record_error"] = "回転数を入力してください。"
+
+def save_remarks_callback(st_id, machine_num):
+    remarks_text = st.session_state.get("input_remarks", "")
+    db.update_machine_remarks(st_id, machine_num, remarks_text)
+    st.session_state["remarks_success"] = True
+
+def delete_record_callback(r_id, label_text):
+    if db.delete_record_by_id(r_id):
+        st.session_state["del_msg"] = f"{label_text} を削除しました。"
+
 # 3. Sidebar Display: Stats
 if rec_count > 0:
-    inv_units = t_inv / 250.0
     st.sidebar.info(f"""
-    **台#{m_num} 実戦平均** ({rec_count}回)
-    - **ベース**: {w_base:.1f} ({t_spins:,} / {inv_units:,.1f})
-    - **出玉**: {w_out:.0f} ({t_out:,} / {t_hits})
+    **台#{m_num} 実践平均** ({rec_count}回)
+    - **ベース**: {w_base:.1f} ({t_spins:.0f} / {t_inv/250:.1f})
+    - **出玉**: {w_out:.0f} ({t_out:.0f} / {t_hits:.1f})
     """)
 
 if i_rec_count > 0:
@@ -146,15 +180,13 @@ if i_rec_count > 0:
 
 # 4. Remarks Input
 current_remarks = db.get_machine_remarks(store_id, m_num)
-# Use key for remarks to allow resetting
-new_remarks_val = st.sidebar.text_area("備考", current_remarks, key="input_remarks")
+st.sidebar.text_area("備考", current_remarks, key="input_remarks")
+st.sidebar.button("備考を保存", on_click=save_remarks_callback, args=(store_id, m_num))
+if st.session_state.get("remarks_success"):
+    st.sidebar.success("備考を保存しました。")
+    del st.session_state["remarks_success"]
 
-if st.sidebar.button("備考を保存"):
-    db.update_machine_remarks(store_id, m_num, new_remarks_val)
-    st.success("備考を保存しました。")
-    st.rerun()
-
-# 5. History Management: Delete Specific Records
+# 5. History Management
 st.sidebar.markdown("---")
 st.sidebar.subheader("履歴管理 (最新5件)")
 history_df = db.get_machine_history(store_id, m_num, limit=5)
@@ -162,59 +194,33 @@ if not history_df.empty:
     for idx, row in history_df.iterrows():
         rid = row['id']
         date_str = row['date']
-        # Display: 02-22: 21.5 / 1420
         label = f"{date_str[5:]}: {row['base_calculated']:.1f} / {int(row['out_10r_calculated'])}"
-        if st.sidebar.button(f"削除 {label}", key=f"del_{rid}"):
-            if db.delete_record_by_id(rid):
-                st.sidebar.success(f"{label} を削除しました。")
-                st.rerun()
-else:
-    st.sidebar.caption("履歴がありません。")
+        st.sidebar.button(f"削除 {label}", key=f"del_{rid}", on_click=delete_record_callback, args=(rid, label))
 
+if st.session_state.get("del_msg"):
+    st.sidebar.success(st.session_state["del_msg"])
+    del st.session_state["del_msg"]
+else: st.sidebar.caption("履歴がありません。")
 
-# 6. Result Input
 st.sidebar.markdown("---")
-# Helper to safely convert text to numeric
-def safe_to_num(val, is_int=True):
-    try:
-        if not val: return 0
-        return int(val) if is_int else float(val)
-    except ValueError:
-        return 0
-
-# Action: Record Data (Moved above widgets to avoid StreamlitAPIException)
-if st.sidebar.button("記録", use_container_width=True):
-    v_inv = safe_to_num(st.session_state.get("input_inv", ""))
-    v_spins = safe_to_num(st.session_state.get("input_spins", ""))
-    v_hits = safe_to_num(st.session_state.get("input_hits", ""))
-    v_out = safe_to_num(st.session_state.get("input_out", ""))
-
-    if v_spins > 0:
-        inv_balls = v_inv * 250
-        db.add_record(store_id, m_num, inv_balls, v_spins, v_hits, v_out)
-        
-        # Clear remarks in DB as well
-        db.update_machine_remarks(store_id, m_num, "")
-        
-        # Clear inputs in session state
-        for k in ["input_inv", "input_spins", "input_hits", "input_out", "input_remarks"]:
-            st.session_state[k] = ""
-            
-        st.success("保存しました。入力内容と備考をリセットしました。")
-        st.rerun()
-    else:
-        st.error("回転数を入力してください。")
-
 st.sidebar.subheader("実戦データ入力")
 
-# Use keys for easy resetting
-# Narrowing input fields for mobile (exactly 1/3 width)
+# Data Entry Widgets
 col_in1, _ = st.sidebar.columns([1, 2])
 with col_in1:
     st.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
     st.text_input("総回転数", value="", placeholder="0", key="input_spins")
     st.text_input("総当たり回数", value="", placeholder="0", key="input_hits") 
     st.text_input("総出玉", value="", placeholder="0", key="input_out")
+
+st.sidebar.button("記録", use_container_width=True, on_click=save_record_callback, args=(store_id, m_num))
+
+if st.session_state.get("record_success"):
+    st.sidebar.success("保存しました。入力内容と備考をリセットしました。")
+    del st.session_state["record_success"]
+if st.session_state.get("record_error"):
+    st.sidebar.error(st.session_state["record_error"])
+    del st.session_state["record_error"]
 
 # Main Area: Calculator
 # Dynamic Settings based on Store
@@ -238,29 +244,27 @@ with col_input1:
     cur_spins = st.number_input("残り回転数", 0, 1500, 450, step=10)
 with col_input2:
     # Default priority: Island Average > Weighted Base > 20.0
-    if i_rec_count > 0:
-        default_base = float(i_base)
-    elif w_base > 10:
-        default_base = float(w_base)
-    else:
-        default_base = 20.0
+    val_base = 20.0
+    if float(i_rec_count) > 0:
+        val_base = float(i_base)
+    elif float(rec_count) > 0 and float(w_base) > 10:
+        val_base = float(w_base)
     
     # Clamp to prevent StreamlitValueOutOfBoundsError
-    default_base = max(10.0, min(30.0, default_base))
+    default_base = max(10.0, min(30.0, val_base))
     cur_base = st.number_input("現在のベース", 10.0, 30.0, default_base, step=0.1, format="%.1f")
 with col_input3:
-    cur_rate = st.number_input("換金率", 20.0, 50.0, default_rate, step=0.1, format="%.1f")
+    cur_rate = st.number_input("換金率", 20.0, 50.0, float(default_rate), step=0.1, format="%.1f")
 with col_input4:
     # Default priority: Island Average > Weighted Avg Out > model default
-    if i_rec_count > 0:
-        default_out = int(i_out)
-    elif w_out > 1000:
-        default_out = int(w_out)
-    else:
-        default_out = default_out_std
+    val_out = float(default_out_std)
+    if float(i_rec_count) > 0:
+        val_out = float(i_out)
+    elif float(rec_count) > 0 and float(w_out) > 1000:
+        val_out = float(w_out)
     
-    default_out = max(1300, min(1550, default_out))
-    cur_avg_out = st.number_input("平均出玉", 1300, 1550, default_out, step=5) 
+    default_out_final = max(1300.0, min(1550.0, val_out))
+    cur_avg_out = st.number_input("平均出玉", 1300, 1550, int(default_out_final), step=5) 
 
 # Calculate using the selected model
 exp_val = logic.calculate_expectation(cur_base, cur_spins, cur_rate, cur_avg_out, calc_model)
