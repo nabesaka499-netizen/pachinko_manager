@@ -177,10 +177,13 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("実戦データ入力")
 
 # Use keys for easy resetting
-inv_k_raw = st.sidebar.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
-spins_raw = st.sidebar.text_input("総回転数", value="", placeholder="0", key="input_spins")
-total_hits_raw = st.sidebar.text_input("総当たり回数", value="", placeholder="0", key="input_hits") 
-total_out_raw = st.sidebar.text_input("総出玉", value="", placeholder="0", key="input_out")
+# Narrowing input fields for mobile (exactly 1/3 width)
+col_in1, _ = st.sidebar.columns([1, 2])
+with col_in1:
+    inv_k_raw = st.text_input("投資 (千円)", value="", placeholder="0", key="input_inv")
+    spins_raw = st.text_input("総回転数", value="", placeholder="0", key="input_spins")
+    total_hits_raw = st.text_input("総当たり回数", value="", placeholder="0", key="input_hits") 
+    total_out_raw = st.text_input("総出玉", value="", placeholder="0", key="input_out")
 
 # Helper to safely convert text to numeric
 def safe_to_num(val, is_int=True):
