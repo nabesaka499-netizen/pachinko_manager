@@ -248,7 +248,7 @@ with col_input2:
     default_base = max(10.0, min(30.0, default_base))
     cur_base = st.number_input("現在のベース", 10.0, 30.0, default_base, step=0.1, format="%.1f")
 with col_input3:
-    cur_rate = st.number_input("換金率 (玉/100円)", 20.0, 50.0, default_rate, step=0.1, format="%.1f")
+    cur_rate = st.number_input("換金率", 20.0, 50.0, default_rate, step=0.1, format="%.1f")
 with col_input4:
     # Default priority: Island Average > Weighted Avg Out > model default
     if i_rec_count > 0:
@@ -259,7 +259,7 @@ with col_input4:
         default_out = default_out_std
     
     default_out = max(1300, min(1550, default_out))
-    cur_avg_out = st.number_input("平均出玉 (R)", 1300, 1550, default_out, step=5) 
+    cur_avg_out = st.number_input("平均出玉", 1300, 1550, default_out, step=5) 
 
 # Calculate using the selected model
 exp_val = logic.calculate_expectation(cur_base, cur_spins, cur_rate, cur_avg_out, calc_model)
