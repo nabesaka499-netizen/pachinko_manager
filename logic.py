@@ -117,16 +117,27 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
 def get_estimated_time(remaining_spins, model_type="大海4SP"):
     """
     Returns estimated total time (minutes) to finish the session, 
-    based on user-provided simulation data for '大海4SP'.
-    100G: 46m, 200G: 57m, 300G: 64m, 400G: 70m, 500G: 74m
+    based on user-provided simulation data.
     """
-    points = [
-        (100, 46.0),
-        (200, 57.0),
-        (300, 64.0),
-        (400, 70.0),
-        (500, 74.0)
-    ]
+    if model_type == "大海5SP":
+        # New data for Sea Story 5 SP
+        points = [
+            (100, 43.0),
+            (200, 52.0),
+            (300, 59.0),
+            (400, 65.0),
+            (500, 69.0)
+        ]
+    else:
+        # Default: 大海4SP
+        points = [
+            (100, 46.0),
+            (200, 57.0),
+            (300, 64.0),
+            (400, 70.0),
+            (500, 74.0)
+        ]
+    
     s = float(remaining_spins)
     
     if s <= 100:
@@ -145,6 +156,46 @@ def get_estimated_time(remaining_spins, model_type="大海4SP"):
     
     # Floor at 30 mins (avg loop duration if s=0)
     return max(30.0, est_min)
+
+def get_expected_hits(remaining_spins, model_type="大海4SP"):
+    """
+    Returns estimated total hit count (Ren-chan) for the session,
+    based on user-provided simulation data.
+    """
+    if model_type == "大海5SP":
+        # New point data for Sea Story 5 SP
+        points = [
+            (100, 2.4),
+            (200, 2.6),
+            (300, 2.7),
+            (400, 2.8),
+            (500, 2.9)
+        ]
+        s = float(remaining_spins)
+        if s <= 100:
+            p1, p2 = points[0], points[1]
+        elif s >= 500:
+            p1, p2 = points[-2], points[-1]
+        else:
+            p1, p2 = points[0], points[1]
+            for i in range(len(points) - 1):
+                if points[i][0] <= s <= points[i+1][0]:
+                    p1, p2 = points[i], points[i+1]
+                    break
+        slope = (p2[1] - p1[1]) / (p2[0] - p1[0])
+        return p1[1] + (s - p1[0]) * slope
+    else:
+        # Probabilistic model for other models (e.g. 大海4SP)
+        p = 1.0 / 319.7
+        avg_ren = 2.85
+        yu_duration = 1200
+        
+        s = float(remaining_spins)
+        p_hit_before = 1.0 - (1.0 - p)**s
+        p_reach_yu = (1.0 - p)**s
+        p_hit_during_yu = 1.0 - (1.0 - p)**yu_duration
+        p_total_hit = p_hit_before + (p_reach_yu * p_hit_during_yu)
+        return p_total_hit * avg_ren
 
 def get_base_curve(base, exchange_rate, machine_out, model_type="大海4SP"):
     points = []
