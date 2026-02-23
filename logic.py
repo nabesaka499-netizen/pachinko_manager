@@ -111,6 +111,35 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
     # 5. Convert to Yen
     yen_per_ball = 100.0 / exchange_rate
     ev_yen = profit_balls * yen_per_ball
+
+    # 6. Exploit: Add provided gain in Yen for 大海5SP
+    if model_type == "大海5SP":
+        # Data points provided by user (remaining_spins, gain_yen)
+        gain_points = [
+            (100, 77.5),
+            (200, 70.5),
+            (300, 65.5),
+            (400, 61.8),
+            (500, 59.1),
+            (600, 57.1)
+        ]
+        
+        target_s = s
+        if target_s <= 100:
+            g_yen = gain_points[0][1]
+        elif target_s >= 600:
+            g_yen = gain_points[-1][1]
+        else:
+            # Linear Interpolation
+            p1, p2 = gain_points[0], gain_points[1]
+            for i in range(len(gain_points) - 1):
+                if gain_points[i][0] <= target_s <= gain_points[i+1][0]:
+                    p1, p2 = gain_points[i], gain_points[i+1]
+                    break
+            g_slope = (p2[1] - p1[1]) / (p2[0] - p1[0])
+            g_yen = p1[1] + (target_s - p1[0]) * g_slope
+            
+        ev_yen += g_yen
     
     return int(ev_yen)
 
