@@ -57,7 +57,7 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
     # 1. Machine Specific Parameters
     if model_type == "大海5SP":
         p = 1.0 / 319.6  # Sea Story 5 SP
-        std_out = 1400.0
+        std_out = 1389.0 # User specified (1389 balls)
         border_points = [
             (100, 6.09),
             (200, 9.91),
@@ -102,13 +102,33 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
     prob_no_hit = (1.0 - p) ** s
     expected_spins = (1.0 - prob_no_hit) / p
     
-    # 4. EV Calculation
+    # 4. EV Calculation (Base Profit)
     rev_balls = (expected_spins / border_adj) * 250.0
     inv_balls = (expected_spins / base) * 250.0
-    
     profit_balls = rev_balls - inv_balls
+
+    # 5. Exploit: Remaining Balls Gain (Avg_End - Avg_Start) * V
+    if model_type == "大海5SP":
+        # V: Value of one ball (approx value of one spin in balls)
+        # Avg jackpot value / probability -> balls per spin
+        v_ball_val = std_out * p 
+        
+        # Avg_Start: Weighted by display/告知
+        # 55% Sakibare (0 balls), 45% Normal (4.5 balls)
+        avg_start_hit = (0.55 * 0) + (0.45 * 4.5)
+        avg_start_yu = 0 # Single-shot adjustment
+        avg_end = 5.0
+        
+        gain_hit = (avg_end - avg_start_hit) * v_ball_val
+        gain_yu = (avg_end - avg_start_yu) * v_ball_val
+        
+        prob_hit = 1.0 - prob_no_hit
+        prob_yu = prob_no_hit
+        
+        total_gain_balls = (prob_hit * gain_hit) + (prob_yu * gain_yu)
+        profit_balls += total_gain_balls
     
-    # 5. Convert to Yen
+    # 6. Convert to Yen
     yen_per_ball = 100.0 / exchange_rate
     ev_yen = profit_balls * yen_per_ball
     
