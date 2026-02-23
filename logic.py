@@ -114,6 +114,7 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
 
     # 6. Exploit: Add provided gain in Yen for 大海5SP
     if model_type == "大海5SP":
+        # --- A. Remaining Ball Gain (from previous instructions) ---
         # Data points provided by user (remaining_spins, gain_yen)
         gain_points = [
             (100, 77.5),
@@ -140,6 +141,20 @@ def calculate_expectation(base, remaining_spins, exchange_rate=27.0, actual_10r_
             g_yen = p1[1] + (target_s - p1[0]) * g_slope
             
         ev_yen += g_yen
+
+        # --- B. Electric Support Support (D) and Yu-Time Gain ---
+        # Theoretical Attacker Payout = 1389.0
+        # Avg Support Spins per hit = 85.0
+        # D = (Actual - Theoretical) / 85.0
+        d_rate = (actual_10r_out - 1389.0) / 85.0
+        
+        # Yu-Time duration = 350 spins
+        yu_gain_balls = 350.0 * d_rate
+        
+        # Probability of reaching Yu-Time = prob_no_hit (calculated at step 3)
+        ev_yu_yen = (prob_no_hit * yu_gain_balls) * yen_per_ball
+        
+        ev_yen += ev_yu_yen
     
     return int(ev_yen)
 
