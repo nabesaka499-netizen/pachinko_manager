@@ -1,7 +1,7 @@
 @echo off
 echo Updating GitHub repository...
 "C:\Program Files\Git\cmd\git.exe" add .
-"C:\Program Files\Git\cmd\git.exe" commit -m "Refine calculator defaults: Strictly use island average for specific model only (ignore Agnes)"
+"C:\Program Files\Git\cmd\git.exe" commit -m "Update Sea 5 SP simulation data to Final Version (Time and Hits refinement)"
 "C:\Program Files\Git\cmd\git.exe" push origin main
 echo.
 echo Update complete!

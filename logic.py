@@ -122,11 +122,12 @@ def get_estimated_time(remaining_spins, model_type="大海4SP"):
     if model_type == "大海5SP":
         # Refined measured data for Sea Story 5 SP
         points = [
-            (100, 37.0),
-            (200, 48.0),
-            (300, 56.0),
-            (400, 62.0),
-            (500, 66.0)
+            (100, 35.0),
+            (200, 45.0),
+            (300, 53.0),
+            (400, 59.0),
+            (450, 61.0),
+            (500, 63.0)
         ]
     else:
         # Default: 大海4SP
@@ -165,11 +166,12 @@ def get_expected_hits(remaining_spins, model_type="大海4SP"):
     if model_type == "大海5SP":
         # Refined points from provided reference images
         points = [
-            (100, 2.52),
-            (200, 2.68),
+            (100, 2.50),
+            (200, 2.70),
             (300, 2.80),
-            (400, 2.89),
-            (500, 2.95)
+            (400, 2.90),
+            (450, 2.90),
+            (500, 2.90)
         ]
         s = float(remaining_spins)
         if s <= 100:
